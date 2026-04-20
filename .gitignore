@@ -1,0 +1,22 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Go
+bin/
+*.exe
+*.test
+coverage.out
+
+# Env
+.env
+.env.*
