@@ -60,4 +60,10 @@ var (
 	ErrInvalidCredential = New(200102, "用户名或密码错误", http.StatusUnauthorized)
 	ErrUserBanned        = New(200103, "用户已被封禁", http.StatusForbidden)
 	ErrWrongOldPassword  = New(200104, "原密码错误", http.StatusBadRequest)
+
+	ErrUploadObjectNotFound = New(300101, "上传对象不存在", http.StatusBadRequest)
+	ErrVideoTranscoding     = New(300102, "视频转码处理中", http.StatusConflict)
+	ErrVideoTranscodeFailed = New(300103, "视频转码失败", http.StatusInternalServerError)
+	ErrVideoInvisible       = New(300104, "视频不可见", http.StatusForbidden)
+	ErrHashtagNotFound      = New(300105, "话题不存在", http.StatusBadRequest)
 )
