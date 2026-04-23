@@ -321,7 +321,7 @@ CREATE TABLE `t_message` (
 |接口名称|Method|Path|说明|
 |---|---|---|---|
 |获取上传凭证|POST|`/api/v1/video/upload-credential`|返回：`upload_url`、`object_key`、`upload_method`、过期时间|
-|发布视频|POST|`/api/v1/video/publish`|参数：`object_key`、`title`、`hashtag_ids`、`allow_comment`、`visibility`|
+|发布视频|POST|`/api/v1/video/publish`|参数：`object_key`、`title`、`hashtag_ids`、`hashtag_names`、`allow_comment`、`visibility`|
 |获取视频详情|GET|`/api/v1/video/{vid}`|返回视频信息、作者信息、互动状态、统计数据|
 |获取视频多码率资源|GET|`/api/v1/video/{vid}/resources`|返回 480p/720p/1080p 资源列表|
 |保存草稿|POST|`/api/v1/draft`|参数：`object_key`、`cover_url`、`title`、`tag_names`、`allow_comment`、`visibility`|
@@ -332,9 +332,10 @@ CREATE TABLE `t_message` (
 
 |接口名称|Method|Path|说明|
 |---|---|---|---|
+|创建话题|POST|`/api/v1/hashtag`|参数：`name`。若话题已存在则直接返回已有话题|
 |获取关注流|GET|`/api/v1/feed/following`|参数：`cursor`、`limit`，返回 `next_cursor`|
 |获取话题详情|GET|`/api/v1/hashtag/{hid}`|返回话题信息|
-|获取话题下视频|GET|`/api/v1/hashtag/{hid}/videos`|参数：`cursor`、`limit`|
+|获取话题下视频|GET|`/api/v1/hashtag/{hid}/videos`|参数：`cursor(RFC3339 时间)`、`limit`|
 
 ### 4.5 互动功能
 
@@ -384,6 +385,13 @@ Feed 服务只消费满足以下条件的视频：
 - 当前用户与鉴权模块由 Gin HTTP 接口直接对外暴露
 - 数据落库通过 GORM Repository 完成，不再使用 `database/sql` 直接操作
 - 退出登录通过 Redis 黑名单失效 Token
+
+### 5.5 当前话题模块实现说明
+
+- 当前话题创建、话题详情与话题视频列表接口已经由 Video 模块统一提供
+- 发布视频时支持继续传入 `hashtag_ids`
+- 发布视频时也支持传入 `hashtag_names`，后端会自动创建不存在的话题并建立关联
+- 当前话题视频列表只返回 `visibility=1` 且 `audit_status=1` 的视频
 
 ## 六、当前版本不纳入本表结构与接口文档的能力
 
