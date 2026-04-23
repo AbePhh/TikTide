@@ -76,11 +76,12 @@ type UploadCredentialData struct {
 
 // PublishVideoRequest 表示发布视频请求体。
 type PublishVideoRequest struct {
-	ObjectKey    string  `json:"object_key"`
-	Title        string  `json:"title"`
-	HashtagIDs   []int64 `json:"hashtag_ids"`
-	AllowComment int8    `json:"allow_comment"`
-	Visibility   int8    `json:"visibility"`
+	ObjectKey    string   `json:"object_key"`
+	Title        string   `json:"title"`
+	HashtagIDs   []int64  `json:"hashtag_ids"`
+	HashtagNames []string `json:"hashtag_names"`
+	AllowComment int8     `json:"allow_comment"`
+	Visibility   int8     `json:"visibility"`
 }
 
 // PublishVideoData 表示发布视频响应结构。
@@ -89,4 +90,37 @@ type PublishVideoData struct {
 	ObjectKey       string `json:"object_key"`
 	SourceURL       string `json:"source_url"`
 	TranscodeStatus int8   `json:"transcode_status"`
+}
+
+// HashtagData 表示话题详情响应结构。
+type HashtagData struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	UseCount  int64  `json:"use_count"`
+	CreatedAt string `json:"created_at"`
+}
+
+// CreateHashtagRequest 表示创建话题请求体。
+type CreateHashtagRequest struct {
+	Name string `json:"name"`
+}
+
+// HashtagVideoData 表示话题下视频项。
+type HashtagVideoData struct {
+	VideoID         int64  `json:"video_id"`
+	UserID          int64  `json:"user_id"`
+	Title           string `json:"title"`
+	ObjectKey       string `json:"object_key"`
+	SourceURL       string `json:"source_url"`
+	CoverURL        string `json:"cover_url"`
+	Visibility      int8   `json:"visibility"`
+	TranscodeStatus int8   `json:"transcode_status"`
+	AuditStatus     int8   `json:"audit_status"`
+	CreatedAt       string `json:"created_at"`
+}
+
+// HashtagVideoListData 表示话题视频列表响应结构。
+type HashtagVideoListData struct {
+	Items      []HashtagVideoData `json:"items"`
+	NextCursor string             `json:"next_cursor,omitempty"`
 }
