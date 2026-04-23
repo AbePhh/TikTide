@@ -98,6 +98,7 @@ Scope 建议枚举：
 - 禁止将真实密钥、私有 OSS 凭证、数据库生产密码写入仓库
 - Kafka Topic 名称、Redis Key 前缀、JWT 配置统一集中管理
 - 当前后端默认从 `backend/.env` 读取本地开发配置
+- 阿里云 OSS 配置通过 `OSS_REGION`、`OSS_ENDPOINT`、`OSS_BUCKET`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`、`OSS_UPLOAD_EXPIRE` 注入
 
 ### 2.5 日志与 Trace 规范
 
@@ -281,6 +282,7 @@ Scope 建议枚举：
 - `publish` 接口不得直接接收最终播放地址
 - 发布接口与上传接口分离，避免后端接收大文件
 - 同一 `object_key` 不得重复发布
+- 当前版本上传签名 URL 使用阿里云 OSS PUT 方式生成
 
 ### 5.2 异步转码流程
 
