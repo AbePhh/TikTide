@@ -46,6 +46,9 @@ func NewEngine(appCtx *app.Context) *gin.Engine {
 		authenticated.PUT("/user/profile", userHandler.UpdateProfile)
 		authenticated.PUT("/user/password", userHandler.ChangePassword)
 		authenticated.GET("/user/:uid", userHandler.GetHomepage)
+		authenticated.POST("/hashtag", videoHandler.CreateHashtag)
+		authenticated.GET("/hashtag/:hid", videoHandler.GetHashtag)
+		authenticated.GET("/hashtag/:hid/videos", videoHandler.ListHashtagVideos)
 		authenticated.POST("/video/upload-credential", videoHandler.CreateUploadCredential)
 		authenticated.POST("/video/publish", videoHandler.PublishVideo)
 	}
