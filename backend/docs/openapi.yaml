@@ -1,18 +1,21 @@
 openapi: 3.0.3
 info:
-  title: TikTide User/Auth API
-  version: 1.0.0
+  title: TikTide API
+  version: 1.1.0
   description: |
-    TikTide 当前阶段的用户与鉴权接口文档。
+    TikTide 当前阶段的用户、鉴权、视频发布与阿里云 OSS 直传接口文档。
 servers:
   - url: http://localhost:8080
-    description: 本地网关服务
+    description: 本地后端服务
 tags:
   - name: User
     description: 用户与鉴权接口
+  - name: Video
+    description: 视频发布与 OSS 直传接口
 paths:
   /healthz:
     get:
+      tags: [User]
       summary: 健康检查
       responses:
         '200':
@@ -134,6 +137,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProfileResponse'
+  /api/v1/video/upload-credential:
+    post:
+      tags: [Video]
+      summary: 获取阿里云 OSS 直传凭证
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadCredentialRequest'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadCredentialResponse'
+  /api/v1/video/publish:
+    post:
+      tags: [Video]
+      summary: 发布视频元数据
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishVideoRequest'
+      responses:
+        '200':
+          description: 发布成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishVideoResponse'
 components:
   securitySchemes:
     BearerAuth:
@@ -190,6 +231,34 @@ components:
         new_password:
           type: string
           example: newpassword456
+    UploadCredentialRequest:
+      type: object
+      properties:
+        file_name:
+          type: string
+          example: demo.mp4
+    PublishVideoRequest:
+      type: object
+      required: [object_key, title, allow_comment, visibility]
+      properties:
+        object_key:
+          type: string
+          example: video/source/1001/20260423/123456789.mp4
+        title:
+          type: string
+          example: 我的第一个视频
+        hashtag_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+          example: [11, 22]
+        allow_comment:
+          type: integer
+          example: 1
+        visibility:
+          type: integer
+          example: 1
     ProfileData:
       type: object
       properties:
@@ -231,6 +300,31 @@ components:
           type: boolean
         created_at:
           type: string
+    UploadCredentialData:
+      type: object
+      properties:
+        object_key:
+          type: string
+        upload_url:
+          type: string
+        upload_method:
+          type: string
+          example: PUT
+        expires_at:
+          type: string
+    PublishVideoData:
+      type: object
+      properties:
+        video_id:
+          type: integer
+          format: int64
+        object_key:
+          type: string
+        source_url:
+          type: string
+        transcode_status:
+          type: integer
+          example: 0
     Envelope:
       type: object
       properties:
@@ -271,6 +365,20 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/ProfileData'
+    UploadCredentialResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UploadCredentialData'
+    PublishVideoResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PublishVideoData'
     BasicSuccessResponse:
       allOf:
         - $ref: '#/components/schemas/Envelope'
