@@ -12,6 +12,8 @@ tags:
     description: 用户与鉴权接口
   - name: Video
     description: 视频发布与 OSS 直传接口
+  - name: Hashtag
+    description: 话题接口
 paths:
   /healthz:
     get:
@@ -175,6 +177,77 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishVideoResponse'
+  /api/v1/hashtag/{hid}:
+    get:
+      tags: [Hashtag]
+      summary: 获取话题详情
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: hid
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HashtagResponse'
+  /api/v1/hashtag:
+    post:
+      tags: [Hashtag]
+      summary: 创建话题
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHashtagRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HashtagResponse'
+  /api/v1/hashtag/{hid}/videos:
+    get:
+      tags: [Hashtag]
+      summary: 获取话题下视频
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: hid
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 20
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HashtagVideoListResponse'
 components:
   securitySchemes:
     BearerAuth:
@@ -253,12 +326,24 @@ components:
             type: integer
             format: int64
           example: [11, 22]
+        hashtag_names:
+          type: array
+          items:
+            type: string
+          example: ["travel", "#sunset"]
         allow_comment:
           type: integer
           example: 1
         visibility:
           type: integer
           example: 1
+    CreateHashtagRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: travel
     ProfileData:
       type: object
       properties:
@@ -325,6 +410,53 @@ components:
         transcode_status:
           type: integer
           example: 0
+    HashtagData:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        use_count:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+    HashtagVideoData:
+      type: object
+      properties:
+        video_id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        object_key:
+          type: string
+        source_url:
+          type: string
+        cover_url:
+          type: string
+        visibility:
+          type: integer
+        transcode_status:
+          type: integer
+        audit_status:
+          type: integer
+        created_at:
+          type: string
+    HashtagVideoListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HashtagVideoData'
+        next_cursor:
+          type: string
     Envelope:
       type: object
       properties:
@@ -379,6 +511,20 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/PublishVideoData'
+    HashtagResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/HashtagData'
+    HashtagVideoListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/HashtagVideoListData'
     BasicSuccessResponse:
       allOf:
         - $ref: '#/components/schemas/Envelope'
