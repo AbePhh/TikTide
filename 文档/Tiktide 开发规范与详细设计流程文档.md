@@ -42,13 +42,13 @@
 
 ### 2.2 分层约束
 
-在 go-zero + DDD 风格下遵循以下依赖方向：
+当前版本采用 Gin 单体模块化结构，遵循以下依赖方向：
 
-- `handler -> logic -> rpc/model`
-- `rpc -> logic -> model`
+- `cmd/server -> internal/http/router -> handler -> service -> model`
+- `internal/app` 负责统一组装数据库、Redis、JWT 等依赖
 - `pkg` 中只放通用能力，不放具体业务逻辑
-- 严禁跨服务直接访问对方数据库
-- 服务间通信必须通过 RPC 或 Kafka 事件
+- `internal/http` 只处理 HTTP 相关逻辑，不直接写数据库
+- `service` 层负责业务规则，`model` 层负责 GORM 数据访问
 
 ### 2.3 Git 规范
 
@@ -97,6 +97,7 @@ Scope 建议枚举：
 - 敏感配置必须通过环境变量或独立私有配置文件注入
 - 禁止将真实密钥、私有 OSS 凭证、数据库生产密码写入仓库
 - Kafka Topic 名称、Redis Key 前缀、JWT 配置统一集中管理
+- 当前后端默认从 `backend/.env` 读取本地开发配置
 
 ### 2.5 日志与 Trace 规范
 
@@ -119,7 +120,7 @@ Scope 建议枚举：
 
 脱敏要求：
 
-- 禁止打印密码、Token 全量值、私钥
+- 禁止打印密码、Token 全量值、固定密钥全文
 - 用户敏感信息输出需脱敏
 - 上传类请求只记录文件大小与对象 key，不记录二进制内容
 
@@ -302,7 +303,7 @@ Scope 建议枚举：
 
 ### 5.3 关注流流程
 
-当前版本只实现关注流，不实现推荐流。
+当前版本只保留关注流设计，不实现推荐流。
 
 发布分发规则：
 
@@ -391,30 +392,13 @@ Scope 建议枚举：
 - 关注/取关
 - Kafka 消费重复投递
 
-## 七、Proto 与 API 契约规范
-
-### 7.1 Proto 目录规范
-
-目录结构：
-
-```plaintext
-common/proto/{service_name}/v1/{service_name}.proto
-```
-
-命名规范：
-
-- Message 使用 `PascalCase`
-- 字段使用 `snake_case`
-- RPC 方法使用动词开头，例如 `CreateVideo`、`GetFollowingFeed`
-- 请求体以 `Req` 结尾
-- 响应体以 `Resp` 结尾
-
-### 7.2 HTTP 接口规范
+## 七、HTTP 接口规范
 
 - RESTful 风格优先
 - 所有列表接口使用 `cursor + limit`
 - 错误响应统一使用错误码表
 - 所有写接口必须校验 `uid`
+- Gin Handler 中统一使用 JSON 绑定、统一响应结构与中间件鉴权
 
 ## 八、测试与验收规范
 
