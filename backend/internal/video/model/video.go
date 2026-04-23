@@ -9,6 +9,8 @@ import (
 var (
 	// ErrVideoNotFound 表示视频不存在。
 	ErrVideoNotFound = errors.New("video not found")
+	// ErrHashtagNotFound 表示话题不存在。
+	ErrHashtagNotFound = errors.New("hashtag not found")
 )
 
 const (
@@ -69,8 +71,25 @@ type Hashtag struct {
 	CreatedAt time.Time
 }
 
+// HashtagVideo 表示话题下的视频摘要。
+type HashtagVideo struct {
+	VideoID         int64
+	UserID          int64
+	Title           string
+	ObjectKey       string
+	SourceURL       string
+	CoverURL        string
+	Visibility      int8
+	TranscodeStatus int8
+	AuditStatus     int8
+	CreatedAt       time.Time
+}
+
 // Repository 定义视频模块所需的持久化操作。
 type Repository interface {
 	CreateVideo(ctx context.Context, video *Video, hashtagIDs []int64) error
 	CountHashtagsByIDs(ctx context.Context, hashtagIDs []int64) (int64, error)
+	GetHashtagByID(ctx context.Context, hashtagID int64) (*Hashtag, error)
+	CreateHashtag(ctx context.Context, name string) (*Hashtag, error)
+	ListVideosByHashtag(ctx context.Context, hashtagID int64, cursor *time.Time, limit int) ([]HashtagVideo, error)
 }
