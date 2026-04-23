@@ -283,6 +283,7 @@ Scope 建议枚举：
 - 发布接口与上传接口分离，避免后端接收大文件
 - 同一 `object_key` 不得重复发布
 - 当前版本上传签名 URL 使用阿里云 OSS PUT 方式生成
+- 发布视频时允许传入 `hashtag_names`，后端负责自动创建不存在的话题
 
 ### 5.2 异步转码流程
 
@@ -366,6 +367,14 @@ Scope 建议枚举：
 - 统一投递 `topic.notify`
 - Consumer 负责落库与更新 `msg:unread:{uid}`
 - 未读数接口优先读取 Redis，列表接口以 MySQL 为准
+
+### 5.7 话题查询流程
+
+0. 需要时前端可先调用 `POST /api/v1/hashtag` 直接创建话题
+1. 前端通过 `GET /api/v1/hashtag/{hid}` 获取话题详情
+2. 前端通过 `GET /api/v1/hashtag/{hid}/videos` 获取话题下视频列表
+3. 话题视频列表使用 `cursor + limit` 拉取，`cursor` 采用 RFC3339 时间字符串
+4. 当前列表仅返回公开且审核通过的视频
 
 ## 六、缓存与一致性规范
 
