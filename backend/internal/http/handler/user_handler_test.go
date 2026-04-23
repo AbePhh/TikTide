@@ -79,7 +79,7 @@ func newTestRouter(t *testing.T) http.Handler {
 		CORSAllowedOrigins: []string{"http://localhost:5173"},
 	}
 
-	return httprouter.NewEngine(app.NewForTest(cfg, userService, jwtManager, blocklist))
+	return httprouter.NewEngine(app.NewForTest(cfg, userService, nil, jwtManager, blocklist))
 }
 
 func performJSONRequest(t *testing.T, router http.Handler, method, path, body, token string) *httptest.ResponseRecorder {
