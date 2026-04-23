@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -42,7 +43,10 @@ type videoHashtagRecord struct {
 func (videoHashtagRecord) TableName() string { return "t_video_hashtag" }
 
 type hashtagRecord struct {
-	ID int64 `gorm:"column:id;primaryKey"`
+	ID        int64     `gorm:"column:id;primaryKey"`
+	Name      string    `gorm:"column:name"`
+	UseCount  int64     `gorm:"column:use_count"`
+	CreatedAt time.Time `gorm:"column:created_at"`
 }
 
 func (hashtagRecord) TableName() string { return "t_hashtag" }
@@ -124,4 +128,68 @@ func (r *MySQLRepository) CountHashtagsByIDs(ctx context.Context, hashtagIDs []i
 		return 0, fmt.Errorf("count hashtags: %w", err)
 	}
 	return count, nil
+}
+
+// GetHashtagByID 根据话题 ID 查询话题信息。
+func (r *MySQLRepository) GetHashtagByID(ctx context.Context, hashtagID int64) (*Hashtag, error) {
+	var record hashtagRecord
+	err := r.db.WithContext(ctx).
+		Table("t_hashtag").
+		Where("id = ?", hashtagID).
+		First(&record).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrHashtagNotFound
+		}
+		return nil, fmt.Errorf("query hashtag: %w", err)
+	}
+
+	return &Hashtag{
+		ID:        record.ID,
+		Name:      record.Name,
+		UseCount:  record.UseCount,
+		CreatedAt: record.CreatedAt,
+	}, nil
+}
+
+// CreateHashtag 按名称创建话题，若已存在则返回已有话题。
+func (r *MySQLRepository) CreateHashtag(ctx context.Context, name string) (*Hashtag, error) {
+	record := hashtagRecord{Name: name}
+	if err := r.db.WithContext(ctx).
+		Table("t_hashtag").
+		Where("name = ?", name).
+		FirstOrCreate(&record).Error; err != nil {
+		return nil, fmt.Errorf("create hashtag: %w", err)
+	}
+
+	return &Hashtag{
+		ID:        record.ID,
+		Name:      record.Name,
+		UseCount:  record.UseCount,
+		CreatedAt: record.CreatedAt,
+	}, nil
+}
+
+// ListVideosByHashtag 查询话题下视频列表。
+func (r *MySQLRepository) ListVideosByHashtag(ctx context.Context, hashtagID int64, cursor *time.Time, limit int) ([]HashtagVideo, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	query := r.db.WithContext(ctx).
+		Table("t_video AS v").
+		Select("v.id, v.user_id, v.title, v.object_key, v.source_url, v.cover_url, v.visibility, v.transcode_status, v.audit_status, v.created_at").
+		Joins("JOIN t_video_hashtag AS vh ON vh.video_id = v.id").
+		Where("vh.hashtag_id = ? AND v.deleted_at IS NULL AND v.visibility = ? AND v.audit_status = ?", hashtagID, VisibilityPublic, AuditPassed)
+
+	if cursor != nil {
+		query = query.Where("v.created_at < ?", *cursor)
+	}
+
+	var records []HashtagVideo
+	if err := query.Order("v.created_at DESC").Limit(limit).Scan(&records).Error; err != nil {
+		return nil, fmt.Errorf("list videos by hashtag: %w", err)
+	}
+
+	return records, nil
 }
