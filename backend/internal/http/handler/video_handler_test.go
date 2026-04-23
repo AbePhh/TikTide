@@ -70,6 +70,98 @@ func TestVideoPublishFlow(t *testing.T) {
 	}
 }
 
+func TestHashtagEndpoints(t *testing.T) {
+	t.Parallel()
+
+	router, videoOSS := newVideoTestRouter(t)
+
+	registerResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/user/register", `{"username":"hashtag_user","password":"password123"}`, "")
+	if registerResp.Code != http.StatusOK {
+		t.Fatalf("unexpected register status: %d", registerResp.Code)
+	}
+
+	loginResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/user/login", `{"username":"hashtag_user","password":"password123"}`, "")
+	if loginResp.Code != http.StatusOK {
+		t.Fatalf("unexpected login status: %d", loginResp.Code)
+	}
+
+	var loginEnvelope struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(loginResp.Body.Bytes(), &loginEnvelope); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+	token := loginEnvelope.Data.Token
+
+	credentialResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/video/upload-credential", `{"file_name":"topic.mp4"}`, token)
+	if credentialResp.Code != http.StatusOK {
+		t.Fatalf("unexpected upload credential status: %d", credentialResp.Code)
+	}
+
+	var credentialEnvelope struct {
+		Data struct {
+			ObjectKey string `json:"object_key"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(credentialResp.Body.Bytes(), &credentialEnvelope); err != nil {
+		t.Fatalf("decode upload credential response: %v", err)
+	}
+	videoOSS.AddObject(credentialEnvelope.Data.ObjectKey)
+
+	publishResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/video/publish", `{
+		"object_key":"`+credentialEnvelope.Data.ObjectKey+`",
+		"title":"topic video",
+		"hashtag_ids":[11],
+		"allow_comment":1,
+		"visibility":1
+	}`, token)
+	if publishResp.Code != http.StatusOK {
+		t.Fatalf("unexpected publish status: %d", publishResp.Code)
+	}
+
+	hashtagResp := performJSONRequest(t, router, http.MethodGet, "/api/v1/hashtag/11", "", token)
+	if hashtagResp.Code != http.StatusOK {
+		t.Fatalf("unexpected hashtag status: %d", hashtagResp.Code)
+	}
+
+	hashtagVideosResp := performJSONRequest(t, router, http.MethodGet, "/api/v1/hashtag/11/videos?limit=20", "", token)
+	if hashtagVideosResp.Code != http.StatusOK {
+		t.Fatalf("unexpected hashtag videos status: %d", hashtagVideosResp.Code)
+	}
+}
+
+func TestCreateHashtagEndpoint(t *testing.T) {
+	t.Parallel()
+
+	router, _ := newVideoTestRouter(t)
+
+	registerResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/user/register", `{"username":"topic_user","password":"password123"}`, "")
+	if registerResp.Code != http.StatusOK {
+		t.Fatalf("unexpected register status: %d", registerResp.Code)
+	}
+
+	loginResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/user/login", `{"username":"topic_user","password":"password123"}`, "")
+	if loginResp.Code != http.StatusOK {
+		t.Fatalf("unexpected login status: %d", loginResp.Code)
+	}
+
+	var loginEnvelope struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(loginResp.Body.Bytes(), &loginEnvelope); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+
+	createResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/hashtag", `{"name":"travel"}`, loginEnvelope.Data.Token)
+	if createResp.Code != http.StatusOK {
+		t.Fatalf("unexpected create hashtag status: %d", createResp.Code)
+	}
+}
+
 func newVideoTestRouter(t *testing.T) (http.Handler, *mocks.MemoryOSSClient) {
 	t.Helper()
 
