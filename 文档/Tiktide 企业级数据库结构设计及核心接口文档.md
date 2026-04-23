@@ -16,6 +16,7 @@
 设计原则如下：
 
 - 核心业务使用 MySQL 持久化，Redis 承担高频读写与状态缓存
+- 当前后端以 Gin 单体模块化架构实现，数据库访问统一使用 GORM
 - 高频统计字段适度冗余，减少聚合查询压力
 - 所有核心实体保留 `created_at`、`updated_at`，必要时保留 `deleted_at`
 - 表结构优先支持“当前要做的功能”，不为未实现能力预留过多复杂字段
@@ -292,6 +293,7 @@ CREATE TABLE `t_message` (
 
 - Header: `Authorization: Bearer <JWT_TOKEN>`
 - 除注册、登录外，其余接口均需鉴权
+- 当前开发环境 JWT 使用 HS256，固定密钥为 `tiktide-system`
 
 ### 4.1 用户与鉴权
 
@@ -374,6 +376,12 @@ Feed 服务只消费满足以下条件的视频：
 - 点赞、评论、关注事件先完成主业务
 - 通知通过 Kafka 异步生成，不阻塞主链路
 - `t_message` 用于消息详情，`msg:unread:{uid}` 用于未读数快速读取
+
+### 5.4 当前用户模块实现说明
+
+- 当前用户与鉴权模块由 Gin HTTP 接口直接对外暴露
+- 数据落库通过 GORM Repository 完成，不再使用 `database/sql` 直接操作
+- 退出登录通过 Redis 黑名单失效 Token
 
 ## 六、当前版本不纳入本表结构与接口文档的能力
 
