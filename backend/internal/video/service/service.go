@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -24,6 +25,9 @@ type OSSClient interface {
 type VideoService interface {
 	CreateUploadCredential(ctx context.Context, userID int64, req CreateUploadCredentialRequest) (*UploadCredential, error)
 	PublishVideo(ctx context.Context, userID int64, req PublishVideoRequest) (*PublishResult, error)
+	CreateHashtag(ctx context.Context, userID int64, req CreateHashtagRequest) (*HashtagResult, error)
+	GetHashtag(ctx context.Context, hashtagID int64) (*HashtagResult, error)
+	ListHashtagVideos(ctx context.Context, hashtagID int64, req ListHashtagVideosRequest) (*HashtagVideoListResult, error)
 }
 
 // Service 实现视频发布与直传能力。
@@ -52,6 +56,7 @@ type PublishVideoRequest struct {
 	ObjectKey    string
 	Title        string
 	HashtagIDs   []int64
+	HashtagNames []string
 	AllowComment int8
 	Visibility   int8
 }
@@ -62,6 +67,45 @@ type PublishResult struct {
 	ObjectKey       string
 	SourceURL       string
 	TranscodeStatus int8
+}
+
+// HashtagResult 表示话题详情。
+type HashtagResult struct {
+	ID        int64
+	Name      string
+	UseCount  int64
+	CreatedAt time.Time
+}
+
+// CreateHashtagRequest 表示直接创建话题请求。
+type CreateHashtagRequest struct {
+	Name string
+}
+
+// HashtagVideoResult 表示话题下的视频摘要。
+type HashtagVideoResult struct {
+	VideoID         int64
+	UserID          int64
+	Title           string
+	ObjectKey       string
+	SourceURL       string
+	CoverURL        string
+	Visibility      int8
+	TranscodeStatus int8
+	AuditStatus     int8
+	CreatedAt       time.Time
+}
+
+// ListHashtagVideosRequest 表示话题视频列表查询条件。
+type ListHashtagVideosRequest struct {
+	Cursor *time.Time
+	Limit  int
+}
+
+// HashtagVideoListResult 表示话题视频列表结果。
+type HashtagVideoListResult struct {
+	Items      []HashtagVideoResult
+	NextCursor *time.Time
 }
 
 // New 创建视频服务。
@@ -126,12 +170,17 @@ func (s *Service) PublishVideo(ctx context.Context, userID int64, req PublishVid
 		return nil, errno.ErrUploadObjectNotFound
 	}
 
-	if len(req.HashtagIDs) > 0 {
-		count, err := s.repo.CountHashtagsByIDs(ctx, req.HashtagIDs)
+	hashtagIDs, err := s.resolveHashtagIDs(ctx, req.HashtagIDs, req.HashtagNames)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(hashtagIDs) > 0 {
+		count, err := s.repo.CountHashtagsByIDs(ctx, hashtagIDs)
 		if err != nil {
 			return nil, errno.ErrInternalRPC
 		}
-		if count != int64(len(req.HashtagIDs)) {
+		if count != int64(len(hashtagIDs)) {
 			return nil, errno.ErrHashtagNotFound
 		}
 	}
@@ -149,7 +198,7 @@ func (s *Service) PublishVideo(ctx context.Context, userID int64, req PublishVid
 		AuditStatus:     model.AuditPassed,
 	}
 
-	if err := s.repo.CreateVideo(ctx, video, req.HashtagIDs); err != nil {
+	if err := s.repo.CreateVideo(ctx, video, hashtagIDs); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return nil, errno.ErrDuplicateRequest
 		}
@@ -164,6 +213,106 @@ func (s *Service) PublishVideo(ctx context.Context, userID int64, req PublishVid
 	}, nil
 }
 
+// CreateHashtag 直接创建话题，若已存在则返回已有话题。
+func (s *Service) CreateHashtag(ctx context.Context, userID int64, req CreateHashtagRequest) (*HashtagResult, error) {
+	if userID <= 0 {
+		return nil, errno.ErrUnauthorized
+	}
+
+	name, err := normalizeHashtagName(req.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	hashtag, err := s.repo.CreateHashtag(ctx, name)
+	if err != nil {
+		return nil, errno.ErrInternalRPC
+	}
+
+	return &HashtagResult{
+		ID:        hashtag.ID,
+		Name:      hashtag.Name,
+		UseCount:  hashtag.UseCount,
+		CreatedAt: hashtag.CreatedAt,
+	}, nil
+}
+
+// GetHashtag 获取话题详情。
+func (s *Service) GetHashtag(ctx context.Context, hashtagID int64) (*HashtagResult, error) {
+	if hashtagID <= 0 {
+		return nil, errno.ErrInvalidParam
+	}
+
+	hashtag, err := s.repo.GetHashtagByID(ctx, hashtagID)
+	if err != nil {
+		if err == model.ErrHashtagNotFound {
+			return nil, errno.ErrHashtagNotFound
+		}
+		return nil, errno.ErrInternalRPC
+	}
+
+	return &HashtagResult{
+		ID:        hashtag.ID,
+		Name:      hashtag.Name,
+		UseCount:  hashtag.UseCount,
+		CreatedAt: hashtag.CreatedAt,
+	}, nil
+}
+
+// ListHashtagVideos 获取话题下的视频列表。
+func (s *Service) ListHashtagVideos(ctx context.Context, hashtagID int64, req ListHashtagVideosRequest) (*HashtagVideoListResult, error) {
+	if hashtagID <= 0 {
+		return nil, errno.ErrInvalidParam
+	}
+
+	if _, err := s.repo.GetHashtagByID(ctx, hashtagID); err != nil {
+		if err == model.ErrHashtagNotFound {
+			return nil, errno.ErrHashtagNotFound
+		}
+		return nil, errno.ErrInternalRPC
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 50 {
+		limit = 50
+	}
+
+	items, err := s.repo.ListVideosByHashtag(ctx, hashtagID, req.Cursor, limit)
+	if err != nil {
+		return nil, errno.ErrInternalRPC
+	}
+
+	results := make([]HashtagVideoResult, 0, len(items))
+	for _, item := range items {
+		results = append(results, HashtagVideoResult{
+			VideoID:         item.VideoID,
+			UserID:          item.UserID,
+			Title:           item.Title,
+			ObjectKey:       item.ObjectKey,
+			SourceURL:       item.SourceURL,
+			CoverURL:        item.CoverURL,
+			Visibility:      item.Visibility,
+			TranscodeStatus: item.TranscodeStatus,
+			AuditStatus:     item.AuditStatus,
+			CreatedAt:       item.CreatedAt,
+		})
+	}
+
+	var nextCursor *time.Time
+	if len(items) == limit {
+		lastCreatedAt := items[len(items)-1].CreatedAt
+		nextCursor = &lastCreatedAt
+	}
+
+	return &HashtagVideoListResult{
+		Items:      results,
+		NextCursor: nextCursor,
+	}, nil
+}
+
 func buildObjectKey(userID, objectID int64, fileName string) string {
 	ext := filepath.Ext(strings.TrimSpace(fileName))
 	if ext == "" {
@@ -171,4 +320,46 @@ func buildObjectKey(userID, objectID int64, fileName string) string {
 	}
 	now := time.Now()
 	return fmt.Sprintf("video/source/%d/%04d%02d%02d/%d%s", userID, now.Year(), now.Month(), now.Day(), objectID, strings.ToLower(ext))
+}
+
+func normalizeHashtagName(raw string) (string, error) {
+	name := strings.TrimSpace(raw)
+	name = strings.TrimPrefix(name, "#")
+	if name == "" || len([]rune(name)) > 64 {
+		return "", errno.ErrInvalidParam
+	}
+	return name, nil
+}
+
+func (s *Service) resolveHashtagIDs(ctx context.Context, inputIDs []int64, inputNames []string) ([]int64, error) {
+	idSet := make(map[int64]struct{}, len(inputIDs))
+	for _, hashtagID := range inputIDs {
+		if hashtagID <= 0 {
+			return nil, errno.ErrInvalidParam
+		}
+		idSet[hashtagID] = struct{}{}
+	}
+
+	for _, rawName := range inputNames {
+		name, err := normalizeHashtagName(rawName)
+		if err != nil {
+			return nil, err
+		}
+		hashtag, err := s.repo.CreateHashtag(ctx, name)
+		if err != nil {
+			return nil, errno.ErrInternalRPC
+		}
+		idSet[hashtag.ID] = struct{}{}
+	}
+
+	if len(idSet) == 0 {
+		return nil, nil
+	}
+
+	hashtagIDs := make([]int64, 0, len(idSet))
+	for hashtagID := range idSet {
+		hashtagIDs = append(hashtagIDs, hashtagID)
+	}
+	sort.Slice(hashtagIDs, func(i, j int) bool { return hashtagIDs[i] < hashtagIDs[j] })
+	return hashtagIDs, nil
 }
