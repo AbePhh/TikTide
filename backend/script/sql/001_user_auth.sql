@@ -1,0 +1,30 @@
+CREATE TABLE IF NOT EXISTS `t_user` (
+  `id` BIGINT NOT NULL COMMENT '用户ID(雪花算法)',
+  `username` VARCHAR(64) NOT NULL COMMENT '登录用户名',
+  `password_hash` VARCHAR(255) NOT NULL COMMENT 'bcrypt密码摘要',
+  `nickname` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '昵称',
+  `avatar_url` VARCHAR(512) NOT NULL DEFAULT '' COMMENT '头像地址',
+  `signature` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '个人简介',
+  `gender` TINYINT NOT NULL DEFAULT 0 COMMENT '性别:0未知,1男,2女',
+  `birthday` DATE DEFAULT NULL COMMENT '生日',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '用户状态:0封禁,1正常',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户基础信息表';
+
+CREATE TABLE IF NOT EXISTS `t_user_stats` (
+  `id` BIGINT NOT NULL COMMENT '用户ID',
+  `follow_count` BIGINT NOT NULL DEFAULT 0 COMMENT '关注数',
+  `follower_count` BIGINT NOT NULL DEFAULT 0 COMMENT '粉丝数',
+  `total_liked_count` BIGINT NOT NULL DEFAULT 0 COMMENT '总获赞数',
+  `work_count` BIGINT NOT NULL DEFAULT 0 COMMENT '作品数',
+  `favorite_count` BIGINT NOT NULL DEFAULT 0 COMMENT '被收藏数',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户统计表';
+
+CREATE USER IF NOT EXISTS 'tiktide'@'%' IDENTIFIED BY 'tiktide';
+GRANT ALL PRIVILEGES ON tiktide.* TO 'tiktide'@'%';
+FLUSH PRIVILEGES;
