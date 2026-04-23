@@ -18,6 +18,7 @@ func NewEngine(appCtx *app.Context) *gin.Engine {
 	engine.Use(ginmiddleware.CORS(appCtx.Config.CORSAllowedOrigins))
 
 	userHandler := handler.NewUserHandler(appCtx)
+	videoHandler := handler.NewVideoHandler(appCtx)
 
 	engine.GET("/healthz", func(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{
@@ -45,6 +46,8 @@ func NewEngine(appCtx *app.Context) *gin.Engine {
 		authenticated.PUT("/user/profile", userHandler.UpdateProfile)
 		authenticated.PUT("/user/password", userHandler.ChangePassword)
 		authenticated.GET("/user/:uid", userHandler.GetHomepage)
+		authenticated.POST("/video/upload-credential", videoHandler.CreateUploadCredential)
+		authenticated.POST("/video/publish", videoHandler.PublishVideo)
 	}
 
 	return engine
