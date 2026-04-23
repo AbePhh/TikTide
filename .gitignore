@@ -16,6 +16,7 @@ bin/
 *.exe
 *.test
 coverage.out
+backend/*.log
 
 # Env
 .env
