@@ -23,6 +23,12 @@ type Config struct {
 	JWTAudience        string
 	JWTTTL             time.Duration
 	JWTSecret          string
+	OSSRegion          string
+	OSSEndpoint        string
+	OSSBucket          string
+	OSSAccessKeyID     string
+	OSSAccessKeySecret string
+	OSSUploadExpire    time.Duration
 	CORSAllowedOrigins []string
 }
 
@@ -33,6 +39,11 @@ func Load() (Config, error) {
 	ttl, err := time.ParseDuration(getEnv("JWT_TTL", "24h"))
 	if err != nil {
 		return Config{}, fmt.Errorf("parse JWT_TTL: %w", err)
+	}
+
+	ossUploadExpire, err := time.ParseDuration(getEnv("OSS_UPLOAD_EXPIRE", "15m"))
+	if err != nil {
+		return Config{}, fmt.Errorf("parse OSS_UPLOAD_EXPIRE: %w", err)
 	}
 
 	redisDB, err := strconv.Atoi(getEnv("REDIS_DB", "0"))
@@ -52,6 +63,12 @@ func Load() (Config, error) {
 		JWTAudience:        getEnv("JWT_AUDIENCE", "tiktide-web"),
 		JWTTTL:             ttl,
 		JWTSecret:          getEnv("JWT_SECRET", "tiktide-system"),
+		OSSRegion:          getEnv("OSS_REGION", "cn-hangzhou"),
+		OSSEndpoint:        getEnv("OSS_ENDPOINT", "oss-cn-hangzhou.aliyuncs.com"),
+		OSSBucket:          getEnv("OSS_BUCKET", "tiktide-video"),
+		OSSAccessKeyID:     os.Getenv("OSS_ACCESS_KEY_ID"),
+		OSSAccessKeySecret: os.Getenv("OSS_ACCESS_KEY_SECRET"),
+		OSSUploadExpire:    ossUploadExpire,
 		CORSAllowedOrigins: splitCSV(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081,http://localhost:8080,http://127.0.0.1:8080")),
 	}
 
