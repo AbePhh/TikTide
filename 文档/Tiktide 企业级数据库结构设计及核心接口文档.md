@@ -17,6 +17,7 @@
 
 - 核心业务使用 MySQL 持久化，Redis 承担高频读写与状态缓存
 - 当前后端以 Gin 单体模块化架构实现，数据库访问统一使用 GORM
+- 视频原文件通过阿里云 OSS 直传，数据库只保存对象 Key 与源文件地址
 - 高频统计字段适度冗余，减少聚合查询压力
 - 所有核心实体保留 `created_at`、`updated_at`，必要时保留 `deleted_at`
 - 表结构优先支持“当前要做的功能”，不为未实现能力预留过多复杂字段
@@ -319,7 +320,7 @@ CREATE TABLE `t_message` (
 
 |接口名称|Method|Path|说明|
 |---|---|---|---|
-|获取上传凭证|POST|`/api/v1/video/upload-credential`|返回：`upload_url`、`object_key`、过期时间|
+|获取上传凭证|POST|`/api/v1/video/upload-credential`|返回：`upload_url`、`object_key`、`upload_method`、过期时间|
 |发布视频|POST|`/api/v1/video/publish`|参数：`object_key`、`title`、`hashtag_ids`、`allow_comment`、`visibility`|
 |获取视频详情|GET|`/api/v1/video/{vid}`|返回视频信息、作者信息、互动状态、统计数据|
 |获取视频多码率资源|GET|`/api/v1/video/{vid}/resources`|返回 480p/720p/1080p 资源列表|
@@ -360,6 +361,7 @@ CREATE TABLE `t_message` (
 
 - `POST /api/v1/video/publish` 对应写入 `t_video`
 - 发布接口写入的是原始对象 `object_key`
+- `source_url` 由当前 OSS `bucket + endpoint + object_key` 拼接得到
 - 真正的播放资源写入 `t_video_resource`
 - `cover_url` 由转码任务截帧后回写
 
