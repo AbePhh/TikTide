@@ -1,0 +1,280 @@
+openapi: 3.0.3
+info:
+  title: TikTide User/Auth API
+  version: 1.0.0
+  description: |
+    TikTide 当前阶段的用户与鉴权接口文档。
+servers:
+  - url: http://localhost:8080
+    description: 本地网关服务
+tags:
+  - name: User
+    description: 用户与鉴权接口
+paths:
+  /healthz:
+    get:
+      summary: 健康检查
+      responses:
+        '200':
+          description: 服务正常
+  /api/v1/user/register:
+    post:
+      tags: [User]
+      summary: 注册
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+  /api/v1/user/login:
+    post:
+      tags: [User]
+      summary: 登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /api/v1/user/logout:
+    post:
+      tags: [User]
+      summary: 退出登录
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 退出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicSuccessResponse'
+  /api/v1/user/profile:
+    get:
+      tags: [User]
+      summary: 获取当前用户资料
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+    put:
+      tags: [User]
+      summary: 更新当前用户资料
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+  /api/v1/user/password:
+    put:
+      tags: [User]
+      summary: 修改密码
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: 修改成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicSuccessResponse'
+  /api/v1/user/{uid}:
+    get:
+      tags: [User]
+      summary: 获取用户主页
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: alice_01
+        password:
+          type: string
+          example: password123
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: alice_01
+        password:
+          type: string
+          example: password123
+    UpdateProfileRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+          example: Alice
+        avatar_url:
+          type: string
+          example: https://example.com/avatar.png
+        signature:
+          type: string
+          example: hello tiktide
+        gender:
+          type: integer
+          example: 1
+        birthday:
+          type: string
+          format: date
+          example: 2002-01-01
+    ChangePasswordRequest:
+      type: object
+      required: [old_password, new_password]
+      properties:
+        old_password:
+          type: string
+          example: password123
+        new_password:
+          type: string
+          example: newpassword456
+    ProfileData:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        nickname:
+          type: string
+        avatar_url:
+          type: string
+        signature:
+          type: string
+        gender:
+          type: integer
+        birthday:
+          type: string
+        status:
+          type: integer
+        follow_count:
+          type: integer
+          format: int64
+        follower_count:
+          type: integer
+          format: int64
+        total_liked_count:
+          type: integer
+          format: int64
+        work_count:
+          type: integer
+          format: int64
+        favorite_count:
+          type: integer
+          format: int64
+        is_followed:
+          type: boolean
+        is_mutual:
+          type: boolean
+        created_at:
+          type: string
+    Envelope:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: success
+    RegisterResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user:
+                  $ref: '#/components/schemas/ProfileData'
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                token:
+                  type: string
+                expires_at:
+                  type: string
+                user:
+                  $ref: '#/components/schemas/ProfileData'
+    ProfileResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ProfileData'
+    BasicSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
