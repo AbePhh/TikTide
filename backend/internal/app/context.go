@@ -11,8 +11,11 @@ import (
 
 	"github.com/AbePhh/TikTide/backend/internal/user/model"
 	userservice "github.com/AbePhh/TikTide/backend/internal/user/service"
+	videomodel "github.com/AbePhh/TikTide/backend/internal/video/model"
+	videoservice "github.com/AbePhh/TikTide/backend/internal/video/service"
 	"github.com/AbePhh/TikTide/backend/pkg/config"
 	"github.com/AbePhh/TikTide/backend/pkg/jwt"
+	ossclient "github.com/AbePhh/TikTide/backend/pkg/oss"
 	"github.com/AbePhh/TikTide/backend/pkg/utils"
 )
 
@@ -24,6 +27,7 @@ type Context struct {
 	JWTManager     *jwt.Manager
 	TokenBlacklist jwt.TokenBlacklist
 	UserService    userservice.UserService
+	VideoService   videoservice.VideoService
 }
 
 // New 创建应用上下文。
@@ -71,6 +75,14 @@ func New(cfg config.Config) (*Context, error) {
 	userRepo := model.NewMySQLRepository(db)
 	blocklist := jwt.NewRedisBlacklistStore(redisClient)
 	userService := userservice.New(userRepo, idGenerator, jwtManager, blocklist)
+	aliyunOSSClient, err := ossclient.NewAliyunClient(cfg)
+	if err != nil {
+		_ = sqlDB.Close()
+		_ = redisClient.Close()
+		return nil, fmt.Errorf("create oss client: %w", err)
+	}
+	videoRepo := videomodel.NewMySQLRepository(db)
+	videoService := videoservice.New(videoRepo, aliyunOSSClient, idGenerator, cfg)
 
 	return &Context{
 		Config:         cfg,
@@ -79,6 +91,7 @@ func New(cfg config.Config) (*Context, error) {
 		JWTManager:     jwtManager,
 		TokenBlacklist: blocklist,
 		UserService:    userService,
+		VideoService:   videoService,
 	}, nil
 }
 
@@ -86,6 +99,7 @@ func New(cfg config.Config) (*Context, error) {
 func NewForTest(
 	cfg config.Config,
 	userService userservice.UserService,
+	videoService videoservice.VideoService,
 	jwtManager *jwt.Manager,
 	blocklist jwt.TokenBlacklist,
 ) *Context {
@@ -94,6 +108,7 @@ func NewForTest(
 		JWTManager:     jwtManager,
 		TokenBlacklist: blocklist,
 		UserService:    userService,
+		VideoService:   videoService,
 	}
 }
 
