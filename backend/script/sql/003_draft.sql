@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS `t_draft` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `object_key` VARCHAR(512) NOT NULL DEFAULT '' COMMENT '草稿视频对象Key',
+  `cover_url` VARCHAR(512) NOT NULL DEFAULT '' COMMENT '草稿封面地址',
+  `title` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '标题草稿',
+  `tag_names` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '话题快照,逗号分隔',
+  `allow_comment` TINYINT NOT NULL DEFAULT 1 COMMENT '是否允许评论',
+  `visibility` TINYINT NOT NULL DEFAULT 1 COMMENT '可见性',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_updated` (`user_id`, `updated_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='草稿箱表';
