@@ -386,12 +386,26 @@ Feed 服务只消费满足以下条件的视频：
 - 数据落库通过 GORM Repository 完成，不再使用 `database/sql` 直接操作
 - 退出登录通过 Redis 黑名单失效 Token
 
-### 5.5 当前话题模块实现说明
+### 5.5 当前关注关系模块实现说明
+
+- 当前关注关系模块已独立拆分为 `relation` 模块，不与用户资料写逻辑耦合
+- 关注与取关统一通过 `POST /api/v1/relation/action` 处理，便于后续接入通知与 Feed 分发
+- 关注列表与粉丝列表均采用 `cursor + limit` 分页，当前 `cursor` 使用关系表自增 ID
+- 用户主页接口 `GET /api/v1/user/{uid}` 已接入关注态查询，可返回 `is_followed` 与 `is_mutual`
+- 关注关系写入时同步维护 `t_user_stats.follow_count` 与 `t_user_stats.follower_count`
+
+### 5.6 当前话题模块实现说明
 
 - 当前话题创建、话题详情与话题视频列表接口已经由 Video 模块统一提供
 - 发布视频时支持继续传入 `hashtag_ids`
 - 发布视频时也支持传入 `hashtag_names`，后端会自动创建不存在的话题并建立关联
 - 当前话题视频列表只返回 `visibility=1` 且 `audit_status=1` 的视频
+
+### 5.7 当前草稿箱模块实现说明
+
+- 当前草稿箱已经支持保存草稿、查询当前用户草稿列表、删除草稿
+- 草稿箱只保存视频发布前的元数据快照，不参与转码与 Feed 分发
+- `tag_names` 采用逗号分隔字符串存储，便于后续与话题模块继续兼容
 
 ## 六、当前版本不纳入本表结构与接口文档的能力
 
