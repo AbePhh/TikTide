@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	relationservice "github.com/AbePhh/TikTide/backend/internal/relation/service"
 	"github.com/AbePhh/TikTide/backend/internal/user/model"
 	"github.com/AbePhh/TikTide/backend/pkg/errno"
 	"github.com/AbePhh/TikTide/backend/pkg/jwt"
@@ -21,6 +22,7 @@ type UserService interface {
 	Login(ctx context.Context, req LoginRequest) (*LoginResult, error)
 	Logout(ctx context.Context, rawToken string) error
 	GetProfile(ctx context.Context, userID int64) (*Profile, error)
+	UpdateUsername(ctx context.Context, userID int64, username string) (*Profile, error)
 	UpdateProfile(ctx context.Context, userID int64, req UpdateProfileRequest) (*Profile, error)
 	ChangePassword(ctx context.Context, userID int64, req ChangePasswordRequest) error
 	GetHomepage(ctx context.Context, viewerUserID, targetUserID int64) (*Profile, error)
@@ -29,9 +31,15 @@ type UserService interface {
 // Service 实现用户与鉴权用例。
 type Service struct {
 	repo      model.Repository
+	relations relationservice.RelationService
 	ids       utils.IDGenerator
 	jwt       *jwt.Manager
 	blocklist jwt.TokenBlacklist
+	search    SearchIndexer
+}
+
+type SearchIndexer interface {
+	UpsertUserDocument(ctx context.Context, userID int64) error
 }
 
 // RegisterRequest 表示注册请求。
@@ -95,8 +103,24 @@ type Profile struct {
 }
 
 // New 创建用户服务。
-func New(repo model.Repository, ids utils.IDGenerator, jwtManager *jwt.Manager, blocklist jwt.TokenBlacklist) *Service {
-	return &Service{repo: repo, ids: ids, jwt: jwtManager, blocklist: blocklist}
+func New(
+	repo model.Repository,
+	relations relationservice.RelationService,
+	ids utils.IDGenerator,
+	jwtManager *jwt.Manager,
+	blocklist jwt.TokenBlacklist,
+) *Service {
+	return &Service{
+		repo:      repo,
+		relations: relations,
+		ids:       ids,
+		jwt:       jwtManager,
+		blocklist: blocklist,
+	}
+}
+
+func (s *Service) SetSearchIndexer(indexer SearchIndexer) {
+	s.search = indexer
 }
 
 // Register 创建用户并初始化统计信息。
@@ -140,6 +164,9 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*RegisterR
 	profile, err := s.GetProfile(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+	if s.search != nil {
+		_ = s.search.UpsertUserDocument(ctx, userID)
 	}
 	return &RegisterResult{User: *profile}, nil
 }
@@ -199,6 +226,49 @@ func (s *Service) Logout(ctx context.Context, rawToken string) error {
 	return nil
 }
 
+func (s *Service) UpdateUsername(ctx context.Context, userID int64, username string) (*Profile, error) {
+	trimmedUsername := strings.TrimSpace(username)
+	if !usernamePattern.MatchString(trimmedUsername) {
+		return nil, errno.ErrInvalidParam
+	}
+
+	currentUser, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, model.ErrUserNotFound) {
+			return nil, errno.ErrResourceNotFound
+		}
+		return nil, errno.ErrInternalRPC
+	}
+	if currentUser.Status == model.UserStatusBanned {
+		return nil, errno.ErrUserBanned
+	}
+	if currentUser.Username == trimmedUsername {
+		return s.GetProfile(ctx, userID)
+	}
+
+	existingUser, err := s.repo.GetByUsername(ctx, trimmedUsername)
+	if err == nil && existingUser.ID != userID {
+		return nil, errno.ErrUsernameExists
+	}
+	if err != nil && !errors.Is(err, model.ErrUserNotFound) {
+		return nil, errno.ErrInternalRPC
+	}
+
+	if err := s.repo.UpdateUsername(ctx, userID, trimmedUsername); err != nil {
+		if errors.Is(err, model.ErrUserNotFound) {
+			return nil, errno.ErrResourceNotFound
+		}
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "unique") {
+			return nil, errno.ErrUsernameExists
+		}
+		return nil, errno.ErrInternalRPC
+	}
+	if s.search != nil {
+		_ = s.search.UpsertUserDocument(ctx, userID)
+	}
+	return s.GetProfile(ctx, userID)
+}
+
 // GetProfile 返回当前用户的资料与统计信息。
 func (s *Service) GetProfile(ctx context.Context, userID int64) (*Profile, error) {
 	user, stats, err := s.loadUserWithStats(ctx, userID)
@@ -233,6 +303,9 @@ func (s *Service) UpdateProfile(ctx context.Context, userID int64, req UpdatePro
 			return nil, errno.ErrResourceNotFound
 		}
 		return nil, errno.ErrInternalRPC
+	}
+	if s.search != nil {
+		_ = s.search.UpsertUserDocument(ctx, userID)
 	}
 	return s.GetProfile(ctx, userID)
 }
@@ -285,8 +358,15 @@ func (s *Service) GetHomepage(ctx context.Context, viewerUserID, targetUserID in
 		return &profile, nil
 	}
 
-	profile.IsFollowed = false
-	profile.IsMutual = false
+	if s.relations != nil {
+		state, err := s.relations.GetRelationState(ctx, viewerUserID, targetUserID)
+		if err != nil {
+			return nil, err
+		}
+		profile.IsFollowed = state.IsFollowed
+		profile.IsMutual = state.IsMutual
+	}
+
 	return &profile, nil
 }
 
