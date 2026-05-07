@@ -10,6 +10,7 @@ Thumbs.db
 node_modules/
 dist/
 build/
+*.tsbuildinfo
 
 # Go
 bin/
@@ -17,7 +18,11 @@ bin/
 *.test
 coverage.out
 backend/*.log
+backend/logs/
 
 # Env
 .env
 .env.*
+
+# Local test assets
+video_test/
