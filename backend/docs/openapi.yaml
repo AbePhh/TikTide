@@ -1,19 +1,25 @@
 openapi: 3.0.3
 info:
   title: TikTide API
-  version: 1.1.0
+  version: 1.2.0
   description: |
-    TikTide 当前阶段的用户、鉴权、视频发布与阿里云 OSS 直传接口文档。
+    TikTide 当前阶段的用户、鉴权、关注关系、视频发布与阿里云 OSS 直传接口文档。
 servers:
   - url: http://localhost:8080
     description: 本地后端服务
 tags:
   - name: User
     description: 用户与鉴权接口
+  - name: Relation
+    description: 关注关系接口
   - name: Video
     description: 视频发布与 OSS 直传接口
   - name: Hashtag
     description: 话题接口
+  - name: Feed
+    description: 关注流接口
+  - name: Message
+    description: 消息通知接口
 paths:
   /healthz:
     get:
@@ -139,6 +145,319 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProfileResponse'
+  /api/v1/relation/action:
+    post:
+      tags: [Relation]
+      summary: 关注或取关用户
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RelationActionRequest'
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelationActionResponse'
+  /api/v1/relation/following/{uid}:
+    get:
+      tags: [Relation]
+      summary: 获取关注列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 20
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelationUserListResponse'
+  /api/v1/relation/followers/{uid}:
+    get:
+      tags: [Relation]
+      summary: 获取粉丝列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 20
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelationUserListResponse'
+  /api/v1/feed/following:
+    get:
+      tags: [Feed]
+      summary: 获取关注流
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 20
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedVideoListResponse'
+  /api/v1/message/unread-count:
+    get:
+      tags: [Message]
+      summary: 获取消息未读数
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageUnreadCountResponse'
+  /api/v1/message/list:
+    get:
+      tags: [Message]
+      summary: 获取消息列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 6
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 20
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+  /api/v1/message/read:
+    post:
+      tags: [Message]
+      summary: 标记消息已读
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageReadRequest'
+      responses:
+        '200':
+          description: 标记成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicSuccessResponse'
+  /api/v1/interact/like:
+    post:
+      tags: [Message]
+      summary: 视频点赞或取消点赞
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InteractActionRequest'
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicSuccessResponse'
+  /api/v1/interact/favorite:
+    post:
+      tags: [Message]
+      summary: 视频收藏或取消收藏
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InteractActionRequest'
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicSuccessResponse'
+  /api/v1/interact/favorite/list:
+    get:
+      tags: [Message]
+      summary: 获取我的收藏列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 20
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteVideoListResponse'
+  /api/v1/interact/comment/publish:
+    post:
+      tags: [Message]
+      summary: 发表评论
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentPublishRequest'
+      responses:
+        '200':
+          description: 发表成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResponse'
+  /api/v1/interact/comment/list:
+    get:
+      tags: [Message]
+      summary: 获取评论列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: video_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: root_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 20
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentListResponse'
+  /api/v1/interact/comment/like:
+    post:
+      tags: [Message]
+      summary: 评论点赞或取消点赞
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentLikeRequest'
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicSuccessResponse'
   /api/v1/video/upload-credential:
     post:
       tags: [Video]
@@ -177,6 +496,117 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishVideoResponse'
+  /api/v1/video/{vid}:
+    get:
+      tags: [Video]
+      summary: 获取视频详情
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vid
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoDetailResponse'
+  /api/v1/video/{vid}/resources:
+    get:
+      tags: [Video]
+      summary: 获取视频多码率资源列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vid
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoResourceListResponse'
+  /api/v1/draft:
+    post:
+      tags: [Video]
+      summary: 保存草稿
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveDraftRequest'
+      responses:
+        '200':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftResponse'
+  /api/v1/draft/list:
+    get:
+      tags: [Video]
+      summary: 获取草稿箱列表
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftListResponse'
+  /api/v1/draft/{id}:
+    delete:
+      tags: [Video]
+      summary: 删除草稿
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicSuccessResponse'
+  /api/v1/hashtag:
+    post:
+      tags: [Hashtag]
+      summary: 创建话题
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHashtagRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HashtagResponse'
   /api/v1/hashtag/{hid}:
     get:
       tags: [Hashtag]
@@ -197,29 +627,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HashtagResponse'
-  /api/v1/hashtag:
-    post:
-      tags: [Hashtag]
-      summary: 创建话题
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateHashtagRequest'
-      responses:
-        '200':
-          description: 创建成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HashtagResponse'
   /api/v1/hashtag/{hid}/videos:
     get:
       tags: [Hashtag]
-      summary: 获取话题下视频
+      summary: 获取话题下视频列表
       security:
         - BearerAuth: []
       parameters:
@@ -304,12 +715,27 @@ components:
         new_password:
           type: string
           example: newpassword456
+    RelationActionRequest:
+      type: object
+      required: [to_user_id, action_type]
+      properties:
+        to_user_id:
+          type: integer
+          format: int64
+          example: 1002
+        action_type:
+          type: integer
+          description: 1 表示关注，2 表示取关
+          example: 1
     UploadCredentialRequest:
       type: object
       properties:
         file_name:
           type: string
           example: demo.mp4
+        content_type:
+          type: string
+          example: video/mp4
     PublishVideoRequest:
       type: object
       required: [object_key, title, allow_comment, visibility]
@@ -337,6 +763,28 @@ components:
         visibility:
           type: integer
           example: 1
+    SaveDraftRequest:
+      type: object
+      required: [allow_comment, visibility]
+      properties:
+        object_key:
+          type: string
+          example: video/source/1001/20260424/draft.mp4
+        cover_url:
+          type: string
+          example: https://example.com/cover.png
+        title:
+          type: string
+          example: 草稿标题
+        tag_names:
+          type: string
+          example: travel,sunset
+        allow_comment:
+          type: integer
+          example: 1
+        visibility:
+          type: integer
+          example: 0
     CreateHashtagRequest:
       type: object
       required: [name]
@@ -348,8 +796,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          example: "2050954618547998720"
         username:
           type: string
         nickname:
@@ -385,6 +833,60 @@ components:
           type: boolean
         created_at:
           type: string
+    RelationActionData:
+      type: object
+      properties:
+        to_user_id:
+          type: string
+          example: "2050954618547998720"
+        action_type:
+          type: integer
+        is_followed:
+          type: boolean
+        is_mutual:
+          type: boolean
+        followed_at:
+          type: string
+          format: date-time
+    RelationUserData:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "2050954618547998720"
+        username:
+          type: string
+        nickname:
+          type: string
+        avatar_url:
+          type: string
+        signature:
+          type: string
+        gender:
+          type: integer
+        status:
+          type: integer
+        follow_count:
+          type: integer
+          format: int64
+        follower_count:
+          type: integer
+          format: int64
+        is_followed:
+          type: boolean
+        is_mutual:
+          type: boolean
+        created_at:
+          type: string
+    RelationUserListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelationUserData'
+        next_cursor:
+          type: string
     UploadCredentialData:
       type: object
       properties:
@@ -395,14 +897,17 @@ components:
         upload_method:
           type: string
           example: PUT
+        content_type:
+          type: string
+          example: video/mp4
         expires_at:
           type: string
     PublishVideoData:
       type: object
       properties:
         video_id:
-          type: integer
-          format: int64
+          type: string
+          example: "2050954618547998720"
         object_key:
           type: string
         source_url:
@@ -410,12 +915,113 @@ components:
         transcode_status:
           type: integer
           example: 0
+    VideoDetailData:
+      type: object
+      properties:
+        video_id:
+          type: string
+          example: "2050954618547998720"
+        user_id:
+          type: string
+          example: "2050954618547998720"
+        title:
+          type: string
+        object_key:
+          type: string
+        source_url:
+          type: string
+        cover_url:
+          type: string
+        duration_ms:
+          type: integer
+        allow_comment:
+          type: integer
+        visibility:
+          type: integer
+        transcode_status:
+          type: integer
+        audit_status:
+          type: integer
+        transcode_fail_reason:
+          type: string
+        audit_remark:
+          type: string
+        play_count:
+          type: integer
+          format: int64
+        like_count:
+          type: integer
+          format: int64
+        comment_count:
+          type: integer
+          format: int64
+        favorite_count:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    VideoResourceData:
+      type: object
+      properties:
+        video_id:
+          type: string
+          example: "2050954618547998720"
+        resolution:
+          type: string
+          example: 1080p
+        file_url:
+          type: string
+        file_size:
+          type: integer
+          format: int64
+        bitrate:
+          type: integer
+        created_at:
+          type: string
+    VideoResourceListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoResourceData'
+    DraftData:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "2050954618547998720"
+        object_key:
+          type: string
+        cover_url:
+          type: string
+        title:
+          type: string
+        tag_names:
+          type: string
+        allow_comment:
+          type: integer
+        visibility:
+          type: integer
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    DraftListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DraftData'
     HashtagData:
       type: object
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          example: "2050954618547998720"
         name:
           type: string
         use_count:
@@ -427,11 +1033,11 @@ components:
       type: object
       properties:
         video_id:
-          type: integer
-          format: int64
+          type: string
+          example: "2050954618547998720"
         user_id:
-          type: integer
-          format: int64
+          type: string
+          example: "2050954618547998720"
         title:
           type: string
         object_key:
@@ -457,6 +1063,232 @@ components:
             $ref: '#/components/schemas/HashtagVideoData'
         next_cursor:
           type: string
+    FeedVideoData:
+      type: object
+      properties:
+        video_id:
+          type: string
+          example: "2050954618547998720"
+        user_id:
+          type: string
+          example: "2050954618547998720"
+        title:
+          type: string
+        object_key:
+          type: string
+        source_url:
+          type: string
+        cover_url:
+          type: string
+        duration_ms:
+          type: integer
+        allow_comment:
+          type: integer
+        visibility:
+          type: integer
+        transcode_status:
+          type: integer
+        audit_status:
+          type: integer
+        transcode_fail_reason:
+          type: string
+        audit_remark:
+          type: string
+        play_count:
+          type: integer
+          format: int64
+        like_count:
+          type: integer
+          format: int64
+        comment_count:
+          type: integer
+          format: int64
+        favorite_count:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    FeedVideoListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedVideoData'
+        next_cursor:
+          type: string
+    MessageData:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "1"
+        receiver_id:
+          type: string
+          example: "2050954618547998720"
+        sender_id:
+          type: string
+          example: "0"
+        type:
+          type: integer
+          example: 6
+        related_id:
+          type: string
+          example: "2050954618547998720"
+        content:
+          type: string
+        is_read:
+          type: integer
+        created_at:
+          type: string
+    MessageListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageData'
+        next_cursor:
+          type: string
+    MessageUnreadCountData:
+      type: object
+      properties:
+        items:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+    MessageReadRequest:
+      type: object
+      properties:
+        msg_id:
+          type: integer
+          format: int64
+        type:
+          type: integer
+          example: 6
+    InteractActionRequest:
+      type: object
+      required: [video_id, action_type]
+      properties:
+        video_id:
+          type: integer
+          format: int64
+        action_type:
+          type: integer
+          example: 1
+    FavoriteVideoData:
+      type: object
+      properties:
+        video_id:
+          type: string
+        user_id:
+          type: string
+        title:
+          type: string
+        object_key:
+          type: string
+        source_url:
+          type: string
+        cover_url:
+          type: string
+        duration_ms:
+          type: integer
+        allow_comment:
+          type: integer
+        visibility:
+          type: integer
+        transcode_status:
+          type: integer
+        audit_status:
+          type: integer
+        like_count:
+          type: integer
+          format: int64
+        comment_count:
+          type: integer
+          format: int64
+        favorite_count:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        favorited_at:
+          type: string
+    FavoriteVideoListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FavoriteVideoData'
+        next_cursor:
+          type: string
+    CommentPublishRequest:
+      type: object
+      required: [video_id, content]
+      properties:
+        video_id:
+          type: integer
+          format: int64
+        content:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        root_id:
+          type: integer
+          format: int64
+        to_user_id:
+          type: integer
+          format: int64
+    CommentData:
+      type: object
+      properties:
+        id:
+          type: string
+        video_id:
+          type: string
+        user_id:
+          type: string
+        content:
+          type: string
+        parent_id:
+          type: string
+        root_id:
+          type: string
+        to_user_id:
+          type: string
+        like_count:
+          type: integer
+          format: int64
+        is_deleted:
+          type: boolean
+        created_at:
+          type: string
+    CommentListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommentData'
+        next_cursor:
+          type: string
+    CommentLikeRequest:
+      type: object
+      required: [comment_id, action_type]
+      properties:
+        comment_id:
+          type: integer
+          format: int64
+        action_type:
+          type: integer
+          example: 1
     Envelope:
       type: object
       properties:
@@ -497,6 +1329,20 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/ProfileData'
+    RelationActionResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RelationActionData'
+    RelationUserListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RelationUserListData'
     UploadCredentialResponse:
       allOf:
         - $ref: '#/components/schemas/Envelope'
@@ -511,6 +1357,76 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/PublishVideoData'
+    VideoDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/VideoDetailData'
+    VideoResourceListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/VideoResourceListData'
+    FeedVideoListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/FeedVideoListData'
+    MessageListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/MessageListData'
+    MessageUnreadCountResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/MessageUnreadCountData'
+    FavoriteVideoListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/FavoriteVideoListData'
+    CommentResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CommentData'
+    CommentListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CommentListData'
+    DraftResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/DraftData'
+    DraftListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/DraftListData'
     HashtagResponse:
       allOf:
         - $ref: '#/components/schemas/Envelope'
