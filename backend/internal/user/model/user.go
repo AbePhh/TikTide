@@ -43,6 +43,11 @@ type UserStats struct {
 	FavoriteCount   int64
 }
 
+type UserWithStats struct {
+	User  User
+	Stats UserStats
+}
+
 // ProfileUpdate 描述允许更新的资料字段。
 type ProfileUpdate struct {
 	Nickname      *string
@@ -59,6 +64,8 @@ type Repository interface {
 	GetByID(ctx context.Context, userID int64) (*User, error)
 	GetByUsername(ctx context.Context, username string) (*User, error)
 	GetStatsByID(ctx context.Context, userID int64) (*UserStats, error)
+	ListUsersWithStats(ctx context.Context, limit, offset int) ([]UserWithStats, error)
+	UpdateUsername(ctx context.Context, userID int64, username string) error
 	UpdateProfile(ctx context.Context, userID int64, update ProfileUpdate) error
 	UpdatePassword(ctx context.Context, userID int64, passwordHash string) error
 }
