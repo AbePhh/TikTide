@@ -1,8 +1,10 @@
 package mocks
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 )
@@ -10,25 +12,29 @@ import (
 // MemoryOSSClient 是测试用内存 OSS 客户端。
 type MemoryOSSClient struct {
 	mu         sync.RWMutex
-	existing   map[string]struct{}
+	existing   map[string][]byte
 	lastSigned string
 }
 
 // NewMemoryOSSClient 创建新的测试用 OSS 客户端。
 func NewMemoryOSSClient(existingObjectKeys ...string) *MemoryOSSClient {
-	store := make(map[string]struct{}, len(existingObjectKeys))
+	store := make(map[string][]byte, len(existingObjectKeys))
 	for _, key := range existingObjectKeys {
-		store[key] = struct{}{}
+		store[key] = nil
 	}
 	return &MemoryOSSClient{existing: store}
 }
 
 // GeneratePutSignedURL 返回假的签名上传地址。
-func (c *MemoryOSSClient) GeneratePutSignedURL(_ context.Context, objectKey string, _ time.Duration) (string, error) {
+func (c *MemoryOSSClient) GeneratePutSignedURL(_ context.Context, objectKey, _ string, _ time.Duration) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.lastSigned = objectKey
 	return fmt.Sprintf("https://example.com/upload/%s", objectKey), nil
+}
+
+func (c *MemoryOSSClient) GenerateGetSignedURL(_ context.Context, objectKey string, _ time.Duration) (string, error) {
+	return fmt.Sprintf("https://example.com/object/%s?signature=demo", objectKey), nil
 }
 
 // ObjectExists 判断对象是否存在。
@@ -44,9 +50,34 @@ func (c *MemoryOSSClient) ObjectURL(objectKey string) string {
 	return fmt.Sprintf("https://example.com/object/%s", objectKey)
 }
 
+// GetObject 返回测试对象内容。
+func (c *MemoryOSSClient) GetObject(_ context.Context, objectKey string) (io.ReadCloser, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	content, ok := c.existing[objectKey]
+	if !ok {
+		return nil, fmt.Errorf("object not found: %s", objectKey)
+	}
+	return io.NopCloser(bytes.NewReader(content)), nil
+}
+
+// PutObject 写入测试对象内容。
+func (c *MemoryOSSClient) PutObject(_ context.Context, objectKey string, reader io.Reader) error {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.existing[objectKey] = content
+	return nil
+}
+
 // AddObject 向测试客户端添加对象。
 func (c *MemoryOSSClient) AddObject(objectKey string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.existing[objectKey] = struct{}{}
+	c.existing[objectKey] = nil
 }
