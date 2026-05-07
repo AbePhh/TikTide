@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	relationservice "github.com/AbePhh/TikTide/backend/internal/relation/service"
 	"github.com/AbePhh/TikTide/backend/pkg/errno"
 	"github.com/AbePhh/TikTide/backend/pkg/jwt"
 	"github.com/AbePhh/TikTide/backend/tests/mocks"
@@ -109,8 +110,10 @@ func newTestService(t *testing.T) (*Service, *mocks.MemoryUserRepository) {
 	}
 
 	repo := mocks.NewMemoryUserRepository()
+	relationRepo := mocks.NewMemoryRelationRepository(repo)
 	blocklist := mocks.NewMemoryTokenBlacklist()
 	idGenerator := mocks.NewIncrementalIDGenerator(1000)
+	relationService := relationservice.New(relationRepo, repo, nil)
 
-	return New(repo, idGenerator, jwtManager, blocklist), repo
+	return New(repo, relationService, idGenerator, jwtManager, blocklist), repo
 }
