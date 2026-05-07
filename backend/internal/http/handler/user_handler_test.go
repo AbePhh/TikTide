@@ -5,11 +5,20 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
+
 	"github.com/AbePhh/TikTide/backend/internal/app"
+	feedservice "github.com/AbePhh/TikTide/backend/internal/feed/service"
 	httprouter "github.com/AbePhh/TikTide/backend/internal/http/router"
+	interactservice "github.com/AbePhh/TikTide/backend/internal/interact/service"
+	messageservice "github.com/AbePhh/TikTide/backend/internal/message/service"
+	recommendservice "github.com/AbePhh/TikTide/backend/internal/recommend/service"
+	relationservice "github.com/AbePhh/TikTide/backend/internal/relation/service"
 	userservice "github.com/AbePhh/TikTide/backend/internal/user/service"
 	"github.com/AbePhh/TikTide/backend/pkg/config"
 	"github.com/AbePhh/TikTide/backend/pkg/jwt"
@@ -71,15 +80,33 @@ func newTestRouter(t *testing.T) http.Handler {
 		t.Fatalf("create jwt manager: %v", err)
 	}
 
+	miniRedis, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("start miniredis: %v", err)
+	}
+	redisClient := redis.NewClient(&redis.Options{Addr: miniRedis.Addr()})
+
 	repo := mocks.NewMemoryUserRepository()
+	relationRepo := mocks.NewMemoryRelationRepository(repo)
 	blocklist := mocks.NewMemoryTokenBlacklist()
 	idGenerator := mocks.NewIncrementalIDGenerator(2000)
-	userService := userservice.New(repo, idGenerator, jwtManager, blocklist)
+	messageRepo := mocks.NewMemoryMessageRepository()
+	messageSvc := messageservice.New(messageRepo, redisClient)
+	relationService := relationservice.New(relationRepo, repo, messageSvc)
+	userService := userservice.New(repo, relationService, idGenerator, jwtManager, blocklist)
+	interactSvc := interactservice.New(nil, nil, nil, messageSvc, nil)
+	feedSvc := feedservice.New(redisClient, relationRepo, nil, repo, relationService, nil)
+	recommendSvc := recommendservice.New(redisClient, mocks.NewMemoryVideoRepository(), mocks.NewMemoryInteractRepository(mocks.NewMemoryVideoRepository(), repo), nil, repo, relationService)
 	cfg := config.Config{
 		CORSAllowedOrigins: []string{"http://localhost:5173"},
 	}
 
-	return httprouter.NewEngine(app.NewForTest(cfg, userService, nil, jwtManager, blocklist))
+	t.Cleanup(func() {
+		_ = redisClient.Close()
+		miniRedis.Close()
+	})
+
+return httprouter.NewEngine(app.NewForTest(cfg, userService, relationService, nil, interactSvc, feedSvc, recommendSvc, messageSvc, nil, jwtManager, blocklist))
 }
 
 func performJSONRequest(t *testing.T, router http.Handler, method, path, body, token string) *httptest.ResponseRecorder {
@@ -103,4 +130,8 @@ func performJSONRequest(t *testing.T, router http.Handler, method, path, body, t
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
 	return recorder
+}
+
+func int64ToString(value int64) string {
+	return strconv.FormatInt(value, 10)
 }
