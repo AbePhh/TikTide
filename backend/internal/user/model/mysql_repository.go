@@ -127,6 +127,93 @@ func (r *MySQLRepository) GetStatsByID(ctx context.Context, userID int64) (*User
 	}, nil
 }
 
+func (r *MySQLRepository) ListUsersWithStats(ctx context.Context, limit, offset int) ([]UserWithStats, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	type row struct {
+		ID              int64      `gorm:"column:id"`
+		Username        string     `gorm:"column:username"`
+		PasswordHash    string     `gorm:"column:password_hash"`
+		Nickname        string     `gorm:"column:nickname"`
+		AvatarURL       string     `gorm:"column:avatar_url"`
+		Signature       string     `gorm:"column:signature"`
+		Gender          int8       `gorm:"column:gender"`
+		Birthday        *time.Time `gorm:"column:birthday"`
+		Status          int8       `gorm:"column:status"`
+		CreatedAt       time.Time  `gorm:"column:created_at"`
+		UpdatedAt       time.Time  `gorm:"column:updated_at"`
+		FollowCount     int64      `gorm:"column:follow_count"`
+		FollowerCount   int64      `gorm:"column:follower_count"`
+		TotalLikedCount int64      `gorm:"column:total_liked_count"`
+		WorkCount       int64      `gorm:"column:work_count"`
+		FavoriteCount   int64      `gorm:"column:favorite_count"`
+	}
+
+	rows := make([]row, 0, limit)
+	if err := r.db.WithContext(ctx).
+		Table("t_user AS u").
+		Select(
+			"u.id, u.username, u.password_hash, u.nickname, u.avatar_url, u.signature, u.gender, u.birthday, u.status, u.created_at, u.updated_at, " +
+				"COALESCE(s.follow_count, 0) AS follow_count, COALESCE(s.follower_count, 0) AS follower_count, " +
+				"COALESCE(s.total_liked_count, 0) AS total_liked_count, COALESCE(s.work_count, 0) AS work_count, COALESCE(s.favorite_count, 0) AS favorite_count",
+		).
+		Joins("LEFT JOIN t_user_stats AS s ON s.id = u.id").
+		Where("u.deleted_at IS NULL").
+		Order("u.id ASC").
+		Limit(limit).
+		Offset(offset).
+		Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list users with stats: %w", err)
+	}
+
+	items := make([]UserWithStats, 0, len(rows))
+	for _, item := range rows {
+		items = append(items, UserWithStats{
+			User: User{
+				ID:           item.ID,
+				Username:     item.Username,
+				PasswordHash: item.PasswordHash,
+				Nickname:     item.Nickname,
+				AvatarURL:    item.AvatarURL,
+				Signature:    item.Signature,
+				Gender:       item.Gender,
+				Birthday:     item.Birthday,
+				Status:       item.Status,
+				CreatedAt:    item.CreatedAt,
+				UpdatedAt:    item.UpdatedAt,
+			},
+			Stats: UserStats{
+				ID:              item.ID,
+				FollowCount:     item.FollowCount,
+				FollowerCount:   item.FollowerCount,
+				TotalLikedCount: item.TotalLikedCount,
+				WorkCount:       item.WorkCount,
+				FavoriteCount:   item.FavoriteCount,
+			},
+		})
+	}
+	return items, nil
+}
+
+func (r *MySQLRepository) UpdateUsername(ctx context.Context, userID int64, username string) error {
+	result := r.db.WithContext(ctx).
+		Table("t_user").
+		Where("id = ? AND deleted_at IS NULL", userID).
+		Update("username", username)
+	if result.Error != nil {
+		return fmt.Errorf("update username: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
 // UpdateProfile 更新用户可编辑资料字段。
 func (r *MySQLRepository) UpdateProfile(ctx context.Context, userID int64, update ProfileUpdate) error {
 	updates := make(map[string]any)
