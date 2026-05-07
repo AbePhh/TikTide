@@ -102,6 +102,28 @@ func (h *UserHandler) GetProfile(ctx *gin.Context) {
 	success(ctx, buildProfileData(*profile))
 }
 
+func (h *UserHandler) UpdateUsername(ctx *gin.Context) {
+	authInfo, ok := ginmiddleware.GetAuthInfo(ctx)
+	if !ok {
+		fail(ctx, errno.ErrUnauthorized)
+		return
+	}
+
+	var req types.UpdateUsernameRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		fail(ctx, errno.ErrInvalidParam)
+		return
+	}
+
+	profile, err := h.appCtx.UserService.UpdateUsername(ctx.Request.Context(), authInfo.UserID, req.Username)
+	if err != nil {
+		fail(ctx, err)
+		return
+	}
+
+	success(ctx, buildProfileData(*profile))
+}
+
 // UpdateProfile 更新当前用户资料。
 func (h *UserHandler) UpdateProfile(ctx *gin.Context) {
 	authInfo, ok := ginmiddleware.GetAuthInfo(ctx)
