@@ -19,6 +19,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
+	log.Printf(
+		"config loaded: http_addr=%s oss_endpoint=%s oss_region=%s oss_access_key=%s",
+		cfg.HTTPAddr,
+		cfg.OSSEndpoint,
+		cfg.OSSRegion,
+		maskKey(cfg.OSSAccessKeyID),
+	)
 
 	appCtx, err := app.New(cfg)
 	if err != nil {
@@ -53,4 +60,11 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		log.Printf("shutdown http server: %v", err)
 	}
+}
+
+func maskKey(value string) string {
+	if len(value) <= 8 {
+		return value
+	}
+	return value[:4] + "..." + value[len(value)-4:]
 }
