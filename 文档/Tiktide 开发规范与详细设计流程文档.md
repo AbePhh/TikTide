@@ -376,6 +376,14 @@ Scope 建议枚举：
 3. 话题视频列表使用 `cursor + limit` 拉取，`cursor` 采用 RFC3339 时间字符串
 4. 当前列表仅返回公开且审核通过的视频
 
+### 5.8 草稿箱流程
+
+1. 前端通过 `POST /api/v1/draft` 保存当前编辑中的草稿
+2. 草稿保存内容包括 `object_key`、`cover_url`、`title`、`tag_names`、评论开关和可见性
+3. 前端通过 `GET /api/v1/draft/list` 获取当前用户草稿列表
+4. 前端通过 `DELETE /api/v1/draft/{id}` 删除指定草稿
+5. 草稿箱数据仅作为发布前快照，不进入转码与 Feed 流程
+
 ## 六、缓存与一致性规范
 
 ### 6.1 Cache Aside 约定
